@@ -122,6 +122,8 @@ def get_model(config: DictConfig):
     model = AutoModelForCausalLM.from_pretrained(
         config.task.model.name, device_map="auto", quantization_config=bnb_config
     )
+    if torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model)
 
     # Prepare model for k-bit training
     if config.task.training.use_4bit:
