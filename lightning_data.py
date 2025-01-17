@@ -1,10 +1,8 @@
-from torch.utils.data import DataLoader
-from torchdata.datapipes.map import MapDataPipe
+from torch.utils.data import DataLoader, Dataset
 from pytorch_lightning import LightningDataModule
 import warnings
 
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
-
 
 class PromptDataModule(LightningDataModule):
     def __init__(
@@ -20,15 +18,15 @@ class PromptDataModule(LightningDataModule):
         self.train_data = None
         self.val_data = None
 
-    def setup(self, stage):
+    def setup(self, stage=None):
         with open(self.hparams.data_path, "r") as f:
             prompts = f.readlines()
         prompts = [line.rstrip("\n") for line in prompts]
         if self.hparams.limit_prompts is not None:
             prompts = prompts[: self.hparams.limit_prompts]
         num_train = int(len(prompts) * self.hparams.train_size)
-        self.train_data = PromptDataPipe(prompts[:num_train], self.tokenizer)
-        self.val_data = PromptDataPipe(prompts[num_train:], self.tokenizer)
+        self.train_data = PromptDataset(prompts[:num_train], self.tokenizer)
+        self.val_data = PromptDataset(prompts[num_train:], self.tokenizer)
 
     def train_dataloader(self):
         return DataLoader(self.train_data, shuffle=True, batch_size=None, num_workers=0)
@@ -37,9 +35,8 @@ class PromptDataModule(LightningDataModule):
         return DataLoader(self.val_data, batch_size=None, num_workers=0)
 
 
-class PromptDataPipe(MapDataPipe):
-    def __init__(self, prompts, tokenizer) -> None:
-        super().__init__()
+class PromptDataset(Dataset):
+    def __init__(self, prompts, tokenizer):
         self.tokenizer = tokenizer
         self.prompts = prompts
 
