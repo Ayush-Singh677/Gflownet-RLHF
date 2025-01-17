@@ -120,7 +120,7 @@ def get_model(config: DictConfig):
         config.task.model.name, add_bos_token=False
     )
     model = AutoModelForCausalLM.from_pretrained(
-        config.task.model.name, device_map="auto", quantization_config=bnb_config
+        config.task.model.name, quantization_config=bnb_config
     )
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
