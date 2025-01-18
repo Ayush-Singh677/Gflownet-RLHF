@@ -22,14 +22,14 @@ training:
   pf_temp_low: 0.5
   pf_temp_prob: 0.666
   use_buffer_prob: 0.25
-  n_samples: 20
+  n_samples: 5
   lr: 0.0001
   accumulate_grad_batches: 25
   epochs: 1
   use_4bit: False
 
 eval:
-  n_probes: 10
+  n_probes: 5
   diversity_metric: "sequence_embedding"
 
 reward:
