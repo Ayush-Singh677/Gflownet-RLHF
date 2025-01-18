@@ -45,6 +45,7 @@ def score_fast(
             )
             for i in range(len(prompt_cache[1]))
         )
+        print(encoded_input)
         logits = model(encoded_input, past_key_values=batched_prompt_cache).logits
     # get rid of the first few tokens
     logits = logits[:, skip_first - 1 :]
@@ -74,6 +75,7 @@ def score_fast(
     reward[~non_term_mask] = 0.0
     reward_unpenalized = reward.clone()
     reward = torch.where(non_term_mask.cumsum(dim=-1) - 1 < min_len, -99, reward)
+    print(reward)
     return reward, reward_unpenalized
 
 
