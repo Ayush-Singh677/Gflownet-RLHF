@@ -40,7 +40,7 @@ def score_fast(
     device = encoded_input.device
     
     decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
-    print(decoded_texts)
+    # print(decoded_texts)
     reward_encoded = reward_tokenizer(
         decoded_texts,
         padding=True,
@@ -77,7 +77,7 @@ def score_fast(
     
     reward[~non_term_mask] = 0.0
     reward_unpenalized[~non_term_mask] = 0.0
-    print(reward)
+    # print(reward)
     return reward, reward_unpenalized
 
 class FrozenModelSentenceGivenPrompt:
