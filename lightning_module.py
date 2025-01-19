@@ -37,6 +37,9 @@ class NextSentenceGFNTask(LightningModule):
         val_probes=None,
         diversity_metric=None,
         use_4bit=False,
+        reward_model=None,
+        reward_tokenizer=None,
+        classifier=None,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model", "tokenizer"])
@@ -45,6 +48,9 @@ class NextSentenceGFNTask(LightningModule):
         self.tokenizer = tokenizer
         self.reward = reward
         self.reward_buffer = reward_buffer
+        self.reward_model = reward_model
+        self.reward_tokenizer = reward_tokenizer
+        self.classifier = classifier
 
         self.diversity_metric_name = f"diversity ({diversity_metric})"
         self.diversity_metric = SequenceDiversity(diversity_metric)
@@ -70,6 +76,9 @@ class NextSentenceGFNTask(LightningModule):
             prompt_length=prompt.shape[1],
             model=self.model,
             tokenizer=self.tokenizer,
+            reward_model=self.reward_model,
+            reward_tokenizer=self.reward_tokenizer,
+            classifier=self.classifier,
         )
         (
             generated_text,
