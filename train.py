@@ -7,6 +7,8 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     BitsAndBytesConfig,
+    pipeline,
+    AutoModelForSequenceClassification
 )
 from peft import get_peft_model, prepare_model_for_kbit_training
 from utils import (
@@ -17,14 +19,14 @@ from utils import (
 )
 from lightning_module import NextSentenceGFNTask
 from lightning_data import PromptDataModule
-
+import os
+os.environ["WANDB_MODE"] = "offline"
 
 @hydra.main(version_base=None, config_path="./configs/", config_name="train")
 def train(config: DictConfig):
     pl.seed_everything(config.seed, workers=True)
 
-    model, tokenizer = get_model(config)
-
+    model, tokenizer,reward_model,reward_tokenizer,classifier = get_model(config)
     try:  # Some tokenizers encode a "." differently when it is the first token
         end_of_sentence_token_id = tokenizer.encode(
             "A sentence.", add_special_tokens=False
@@ -42,7 +44,7 @@ def train(config: DictConfig):
     illegal_token_mask[illegal_tokens] = True
     illegal_token_mask = illegal_token_mask.numpy()
 
-    reward = get_reward(config, end_of_sentence_token_id, illegal_token_mask)
+    reward = get_reward(config, end_of_sentence_token_id, illegal_token_mask,reward_model,reward_tokenizer,classifier)
     reward_buffer = ReplayBuffer(
         buffer_size=config.task.reward.buffer_size,
         termination_token_id=end_of_sentence_token_id,
@@ -80,6 +82,9 @@ def train(config: DictConfig):
         val_probes=val_probes,
         diversity_metric=config.task.eval.diversity_metric,
         use_4bit=config.task.training.use_4bit,
+        reward_model=reward_model,
+        reward_tokenizer=reward_tokenizer,
+        classifier=classifier
     )
 
     trainer = pl.Trainer(
@@ -104,7 +109,6 @@ def train(config: DictConfig):
 
 
 def get_model(config: DictConfig):
-    # Use 4-bit quantization for lower memory use
     if config.task.training.use_4bit:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -125,16 +129,23 @@ def get_model(config: DictConfig):
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
-    # Prepare model for k-bit training
     if config.task.training.use_4bit:
         model = prepare_model_for_kbit_training(
             model,
             use_gradient_checkpointing=False,  # Doesn't save memory when generating autoregressively compared to caching
         )
 
-    # Wrap using Lora
     model = get_peft_model(
         model, hydra.utils.instantiate(config.task.model.lora_config)
+    )
+    reward_model = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-harmless-train")
+    reward_tokenizer = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-harmless-train")
+    classifier = pipeline(
+        "text-classification",
+        model=reward_model,
+        tokenizer=reward_tokenizer,
+        truncation=True,          
+        max_length=1024,
     )
 
     # Remove dropout
@@ -142,10 +153,10 @@ def get_model(config: DictConfig):
         if isinstance(mod, torch.nn.Dropout):
             mod.p = 0.0
 
-    return model, tokenizer
+    return model, tokenizer, reward_model, reward_tokenizer, classifier
 
 
-def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask):
+def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask,reward_model,reward_tokenizer,classifier):
     if config.task.reward.sentence_validator is None:
         sentence_validator, valid_sentence_alpha = None, None
     elif config.task.reward.sentence_validator == "rule":
@@ -162,7 +173,6 @@ def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask):
         raise ValueError(
             f"Invalid sentence validator: {config.task.reward.sentence_validator}"
         )
-
     reward = FrozenModelSentenceGivenPrompt(
         sentence_token_id=sentence_token_id,
         min_len=config.task.constraints.min_sentence_len,
@@ -170,10 +180,12 @@ def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask):
         vocab_naughty_mask=illegal_token_mask,
         sentence_validator=sentence_validator,
         valid_sentence_alpha=valid_sentence_alpha,
+        reward_model = reward_model,
+        reward_tokenizer = reward_tokenizer,
+        classifier = classifier
     )
 
     return reward
-
 
 if __name__ == "__main__":
     train()
