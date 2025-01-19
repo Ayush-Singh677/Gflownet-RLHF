@@ -14,7 +14,6 @@ def lora_to_base(model):
     model.base_model.disable_adapter_layers()
     model.eval()
 
-
 def base_to_lora(model):
     model.base_model.enable_adapter_layers()
     model.train()
@@ -23,6 +22,7 @@ def base_to_lora(model):
 @torch.no_grad()
 def score_fast(
     model,
+    tokenizer,
     encoded_input,
     termination_token_id,
     min_len,
@@ -31,39 +31,31 @@ def score_fast(
     vocab_naughty_mask=None,
     vocab_alpha=-99,
     prompt_cache=None,
+    reward_model=None,
+    reward_tokenizer=None,
+    classifier=None,
 ):
-    if prompt_cache is None:
-        logits = model(encoded_input).logits
-    else:
-        # prompt_cache[1] contains past_key_values which need to be reshaped to the right batch size from encoded_input
-        batched_prompt_cache = tuple(
-            tuple(
-                [
-                    prompt_cache[1][i][j].repeat(encoded_input.shape[0], 1, 1, 1)
-                    for j in range(len(prompt_cache[1][i]))
-                ]
-            )
-            for i in range(len(prompt_cache[1]))
-        )
-        print(encoded_input)
-        logits = model(encoded_input, past_key_values=batched_prompt_cache).logits
-    # get rid of the first few tokens
-    logits = logits[:, skip_first - 1 :]
-    # score the log probability of the input sequence while ignoring termination and padding tokens
-    if vocab_nice_mask is not None:
-        # add vocab_alpha to the logits of the unmasked vocab items
-        logits[:, :, ~vocab_nice_mask] += vocab_alpha
-    elif vocab_naughty_mask is not None:
-        # add vocab_alpha to the logits of the masked vocab items
-        logits[:, :, vocab_naughty_mask] += vocab_alpha
-    logprob = logits.log_softmax(-1)
-    token_ids = encoded_input[:, skip_first:].unsqueeze(-1)
-    logPF = logprob[:, :-1].gather(-1, token_ids).squeeze(-1)
-    logP = logPF.cumsum(dim=-1)  # logP(generated[:i+1] | prompt)
-    reward = logprob[
-        :, :, termination_token_id
-    ]  # logP(generated[i+1]=term | prompt + generated[:i+1])
-    reward[:, 1:] += logP  # logP(generated[:i] + term | prompt)
+    batch_size = encoded_input.shape[0]
+    seq_length = encoded_input.shape[1] - skip_first
+    device = encoded_input.device
+    
+    decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
+    print(decoded_texts)
+    reward_encoded = reward_tokenizer(
+        decoded_texts,
+        padding=True,
+        truncation=True,
+        return_tensors="pt"
+    ).to(device)
+    
+    if vocab_nice_mask is not None and not isinstance(vocab_nice_mask, torch.Tensor):
+        vocab_nice_mask = torch.from_numpy(vocab_nice_mask)
+    if vocab_naughty_mask is not None and not isinstance(vocab_naughty_mask, torch.Tensor):
+        vocab_naughty_mask = torch.from_numpy(vocab_naughty_mask)
+    
+    reward = torch.zeros(batch_size, seq_length + 1).to(device)
+    reward_unpenalized = torch.zeros(batch_size, seq_length + 1).to(device)
+    
     non_term_mask = (encoded_input != termination_token_id)[:, skip_first:]
     non_term_mask = torch.cat(
         (
@@ -71,13 +63,22 @@ def score_fast(
             non_term_mask,
         ),
         dim=-1,
-    )  # Start (i.e., empty) state has never terminated
+    )
+    
+    for i in range(seq_length + 1):
+        prefix = reward_encoded['input_ids'][:, :skip_first + i]
+        
+        with torch.no_grad():
+            model_output = reward_model(prefix)
+            current_reward = model_output.logits[:, 0].to(device)
+            
+            reward[:, i] = current_reward
+            reward_unpenalized[:, i] = current_reward
+    
     reward[~non_term_mask] = 0.0
-    reward_unpenalized = reward.clone()
-    reward = torch.where(non_term_mask.cumsum(dim=-1) - 1 < min_len, -99, reward)
+    reward_unpenalized[~non_term_mask] = 0.0
     print(reward)
     return reward, reward_unpenalized
-
 
 class FrozenModelSentenceGivenPrompt:
     def __init__(
@@ -90,6 +91,9 @@ class FrozenModelSentenceGivenPrompt:
         vocab_naughty_mask=None,
         sentence_validator=None,
         valid_sentence_alpha=None,
+        reward_model=None,
+        reward_tokenizer=None,
+        classifier=None,
     ):
         assert (
             sentence_validator is None
@@ -106,13 +110,17 @@ class FrozenModelSentenceGivenPrompt:
         self.min_len = min_len
         self.sentence_validator = sentence_validator
         self.valid_sentence_alpha = valid_sentence_alpha
+        self.reward_model = reward_model
+        self.reward_tokenizer = reward_tokenizer
+        self.classifier = classifier
 
-    def score(self, input_batch, prompt_length, model, tokenizer):
+    def score(self, input_batch, prompt_length, model, tokenizer ,reward_model, reward_tokenizer,classifier):
         lora_to_base(model)
         training = model.training
         model.eval()
         reward, reward_unpenalized = score_fast(
             model=model,
+            tokenizer=tokenizer,
             encoded_input=input_batch,
             termination_token_id=self.sentence_token_id,
             skip_first=prompt_length,
@@ -120,6 +128,9 @@ class FrozenModelSentenceGivenPrompt:
             vocab_naughty_mask=self.vocab_naughty_mask,
             vocab_alpha=self.vocab_alpha,
             min_len=self.min_len,
+            reward_model = reward_model,
+            reward_tokenizer = reward_tokenizer,
+            classifier=classifier
         )
         reward /= self.temperature
         reward_unpenalized /= self.temperature
