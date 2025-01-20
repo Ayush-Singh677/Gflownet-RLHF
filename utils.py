@@ -41,7 +41,7 @@ def score_fast(
     device = encoded_input.device
     
     decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
-    # print(decoded_texts)
+    print(decoded_texts)
     reward_encoded = reward_tokenizer[0](
         decoded_texts,
         padding=True,
@@ -78,7 +78,7 @@ def score_fast(
     
     reward[~non_term_mask] = 0.0
     reward_unpenalized[~non_term_mask] = 0.0
-    # print(reward)
+    print(reward)
     return reward, reward_unpenalized
 
 class FrozenModelSentenceGivenPrompt:
@@ -337,6 +337,8 @@ def generate_and_return_termination_logprob(
         # Reward for all intermediate states (except the last one,
         # which is guaranteed to be the termination token)
         log_r, log_r_unpenalized = reward_fn(state[:, :-1])
+    print(log_pf)
+    print(log_pterm)
     # add a termination token to the end of the sequence
     return state, log_pf, log_pterm, log_r, log_r_unpenalized
 
@@ -385,6 +387,7 @@ def modified_subtb_loss(
             subtb_lambda ** (subtraj_len - 1) * (~mask[:, subtraj_len - 1 :]).sum()
         )
     batch_loss /= total_lambda
+    print(batch_loss)
 
     return batch_loss
 
