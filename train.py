@@ -140,15 +140,11 @@ def get_model(config: DictConfig):
     )
     reward_model = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-harmless-train")
     reward_tokenizer = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-harmless-train")
-    classifier = pipeline(
-        "text-classification",
-        model=reward_model,
-        tokenizer=reward_tokenizer,
-        truncation=True,          
-        max_length=1024,
-    )
 
-    # Remove dropout
+    reward_model = [reward_model]
+    reward_tokenizer = [reward_tokenizer]
+    classifier = None
+
     for mod in model.modules():
         if isinstance(mod, torch.nn.Dropout):
             mod.p = 0.0
