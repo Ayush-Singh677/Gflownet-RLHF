@@ -10,6 +10,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 
 
+
 def lora_to_base(model):
     model.base_model.disable_adapter_layers()
     model.eval()
@@ -69,7 +70,7 @@ def score_fast(
         prefix = reward_encoded['input_ids'][:, :skip_first + i]
         
         with torch.no_grad():
-            model_output = reward_model[0](prefix)
+            model_output = reward_model[0].to(prefix.device)(prefix)
             current_reward = model_output.logits[:, 0].to(device)
             
             reward[:, i] = current_reward
