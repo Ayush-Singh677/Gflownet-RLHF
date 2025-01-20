@@ -41,7 +41,7 @@ def score_fast(
     device = encoded_input.device
     
     decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
-    # print(decoded_texts)
+    print("Input to score function : " + decoded_texts)
     reward_encoded = reward_tokenizer[0](
         decoded_texts,
         padding=True,
@@ -78,7 +78,7 @@ def score_fast(
     
     reward[~non_term_mask] = 0.0
     reward_unpenalized[~non_term_mask] = 0.0
-    # print(reward)
+    print("Reward(log_r): " + reward)
     return reward, reward_unpenalized
 
 class FrozenModelSentenceGivenPrompt:
@@ -249,6 +249,7 @@ def generate_and_return_termination_logprob(
     # generate and return the probability of terminating at every step
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
     state = encoded_prompt.clone()
+    print("Encoded Prompt: ",state)
     log_pf = []
     log_pterm = []
     token_ids = state  # For caching hidden states during generation
@@ -340,6 +341,8 @@ def generate_and_return_termination_logprob(
     # print(log_pf)
     # print(log_pterm)
     # add a termination token to the end of the sequence
+    print("log_pf:" + log_pf)
+    print("log_pterm:" + log_pterm)
     return state, log_pf, log_pterm, log_r, log_r_unpenalized
 
 
@@ -387,7 +390,7 @@ def modified_subtb_loss(
             subtb_lambda ** (subtraj_len - 1) * (~mask[:, subtraj_len - 1 :]).sum()
         )
     batch_loss /= total_lambda
-    # print(batch_loss)
+    print("SubTrajLoss->Input(log_pf,log_r,log_pterm): "batch_loss)
 
     return batch_loss
 
