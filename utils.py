@@ -41,7 +41,7 @@ def score_fast(
     
     decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
     # print(decoded_texts)
-    reward_encoded = reward_tokenizer(
+    reward_encoded = reward_tokenizer[0](
         decoded_texts,
         padding=True,
         truncation=True,
@@ -69,7 +69,7 @@ def score_fast(
         prefix = reward_encoded['input_ids'][:, :skip_first + i]
         
         with torch.no_grad():
-            model_output = reward_model(prefix)
+            model_output = reward_model[0](prefix)
             current_reward = model_output.logits[:, 0].to(device)
             
             reward[:, i] = current_reward
