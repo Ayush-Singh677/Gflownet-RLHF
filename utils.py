@@ -247,7 +247,7 @@ def generate_and_return_termination_logprob(
     skip_rewards=False,
 ):
     # generate and return the probability of terminating at every step
-    active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
+    active_seqs = None
     state = encoded_prompt.clone()
     # print("Encoded Prompt: ",state)
     log_pf = []
