@@ -38,7 +38,7 @@ def score_fast(
     device = encoded_input.device
     
     decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
-    print("Decoded output after generation: \n",decoded_texts)
+    # print("Decoded output after generation: \n",decoded_texts)
     reward_encoded = reward_tokenizer[0](
         decoded_texts,
         padding=True,
@@ -75,7 +75,7 @@ def score_fast(
     
     reward[~non_term_mask] = 0.0
     reward_unpenalized[~non_term_mask] = 0.0
-    print("Tokenwise Reward: ",reward)
+    # print("Tokenwise Reward: ",reward)
     return reward, reward_unpenalized
 
 class FrozenModelSentenceGivenPrompt:
@@ -143,14 +143,12 @@ class FrozenModelSentenceGivenPrompt:
 
         return reward, reward_unpenalized
 
-
 class SentenceValidator:
     def __init__(self, sentence_token_id) -> None:
         self.sentence_token_id = sentence_token_id
 
     def __call__(self, sentences, tokenizer):
         pass
-
 
 class RuleSentenceValidator(SentenceValidator):
     def __init__(self, *args, **kwargs) -> None:
@@ -189,7 +187,6 @@ class RuleSentenceValidator(SentenceValidator):
                     invalid[i, j + 1] = True  # Must have a noun and a verb
         return invalid
 
-
 class ModelSentenceValidator(SentenceValidator):
     def __init__(self, *args, model_name=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -226,7 +223,6 @@ class ModelSentenceValidator(SentenceValidator):
             invalid[~done, i + 1] = invalid_probs[~done] > 0.2
         return invalid
 
-
 def generate_and_return_termination_logprob(
     model,
     encoded_prompt,
@@ -243,7 +239,7 @@ def generate_and_return_termination_logprob(
     action_seq=None,
     skip_rewards=False,
 ):
-    print("Input Prompt Encoded: \n",encoded_prompt)
+    # print("Input Prompt Encoded: \n",encoded_prompt)
     # generate and return the probability of terminating at every step
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
     state = encoded_prompt.clone()
@@ -330,7 +326,7 @@ def generate_and_return_termination_logprob(
         if torch.all(~active_seqs):
             break
 
-    print("Encoded output after generation \n",state)
+    # print("Encoded output after generation \n",state)
     log_pf = torch.stack(log_pf, dim=1)
     log_pterm = torch.stack(log_pterm, dim=1)
     
@@ -341,8 +337,8 @@ def generate_and_return_termination_logprob(
         # which is guaranteed to be the termination token)
         log_r, log_r_unpenalized = reward_fn(state[:, :-1])
     
-    print("Log Prob of termination at each token: \n",log_pterm)
-    print("Log Prob of continuing at each token: \n",log_pf)
+    # print("Log Prob of termination at each token: \n",log_pterm)
+    # print("Log Prob of continuing at each token: \n",log_pf)
     # print(log_pf)
     # print(log_pterm)
     # add a termination token to the end of the sequence
