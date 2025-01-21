@@ -135,9 +135,9 @@ def get_model(config: DictConfig):
             use_gradient_checkpointing=False,  # Doesn't save memory when generating autoregressively compared to caching
         )
 
-    model = get_peft_model(
-        model, hydra.utils.instantiate(config.task.model.lora_config)
-    )
+    # model = get_peft_model(
+    #     model, hydra.utils.instantiate(config.task.model.lora_config)
+    # )
     reward_model = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-harmless-train")
     reward_tokenizer = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-harmless-train")
 
@@ -145,9 +145,9 @@ def get_model(config: DictConfig):
     reward_tokenizer = [reward_tokenizer]
     classifier = None
 
-    for mod in model.modules():
-        if isinstance(mod, torch.nn.Dropout):
-            mod.p = 0.0
+    # for mod in model.modules():
+    #     if isinstance(mod, torch.nn.Dropout):
+    #         mod.p = 0.0
 
     return model, tokenizer, reward_model, reward_tokenizer, classifier
 
