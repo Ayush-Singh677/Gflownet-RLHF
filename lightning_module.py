@@ -483,7 +483,7 @@ class NextSentenceGFNTask(LightningModule):
 
         def generate(prompt, **kwargs):
             with torch.no_grad():
-                lora_to_base(self.model)
+                # lora_to_base(self.model)
                 generated_text = self.model.generate(
                     prompt,
                     min_new_tokens=self.hparams.min_sentence_len,
@@ -496,7 +496,7 @@ class NextSentenceGFNTask(LightningModule):
                     .squeeze(-1),
                     **kwargs,
                 )
-                base_to_lora(self.model)
+                # base_to_lora(self.model)
 
                 log_r, log_r_unpenalized = self.reward.score(
                     generated_text,
