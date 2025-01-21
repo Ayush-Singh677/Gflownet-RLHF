@@ -341,8 +341,8 @@ def generate_and_return_termination_logprob(
     # print(log_pf)
     # print(log_pterm)
     # add a termination token to the end of the sequence
-    print("log_pf:" + log_pf)
-    print("log_pterm:" + log_pterm)
+    print("log_pf:",log_pf)
+    print("log_pterm:",log_pterm)
     return state, log_pf, log_pterm, log_r, log_r_unpenalized
 
 
@@ -390,7 +390,7 @@ def modified_subtb_loss(
             subtb_lambda ** (subtraj_len - 1) * (~mask[:, subtraj_len - 1 :]).sum()
         )
     batch_loss /= total_lambda
-    print("SubTrajLoss->Input(log_pf,log_r,log_pterm): " + batch_loss)
+    print("SubTrajLoss->Input(log_pf,log_r,log_pterm): ",batch_loss)
 
     return batch_loss
 
