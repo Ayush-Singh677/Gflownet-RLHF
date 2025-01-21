@@ -41,7 +41,7 @@ def score_fast(
     device = encoded_input.device
     
     decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
-    print("Input to score function : " + decoded_texts)
+    print("Input to score function : ",decoded_texts)
     reward_encoded = reward_tokenizer[0](
         decoded_texts,
         padding=True,
