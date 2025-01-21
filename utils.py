@@ -78,7 +78,7 @@ def score_fast(
     
     reward[~non_term_mask] = 0.0
     reward_unpenalized[~non_term_mask] = 0.0
-    print("Reward(log_r): " + reward)
+    print("Reward(log_r): ",reward)
     return reward, reward_unpenalized
 
 class FrozenModelSentenceGivenPrompt:
