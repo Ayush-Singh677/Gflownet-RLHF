@@ -113,7 +113,7 @@ class FrozenModelSentenceGivenPrompt:
         self.classifier = classifier
 
     def score(self, input_batch, prompt_length, model, tokenizer ,reward_model, reward_tokenizer,classifier):
-        lora_to_base(model)
+        # lora_to_base(model)
         training = model.training
         model.eval()
         reward, reward_unpenalized = score_fast(
@@ -132,7 +132,7 @@ class FrozenModelSentenceGivenPrompt:
         )
         reward /= self.temperature
         reward_unpenalized /= self.temperature
-        base_to_lora(model)
+        # base_to_lora(model)
         if training:
             model.train()
 
