@@ -138,11 +138,13 @@ def get_model(config: DictConfig):
     # model = get_peft_model(
     #     model, hydra.utils.instantiate(config.task.model.lora_config)
     # )
-    reward_model = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-harmless-train")
-    reward_tokenizer = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-harmless-train")
+    r1 = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-harmless-train")
+    t1 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-harmless-train")
+    r2 = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-helpful-train")
+    t2 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-helpful-train")
 
-    reward_model = [reward_model]
-    reward_tokenizer = [reward_tokenizer]
+    reward_model = [r1,r2]
+    reward_tokenizer = [t1,t3]
     classifier = None
 
     # for mod in model.modules():
