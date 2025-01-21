@@ -38,7 +38,7 @@ def score_fast(
     device = encoded_input.device
     
     decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
-    # print("Input to score function : ",decoded_texts)
+    print("Decoded output after generation: \n",decoded_texts)
     reward_encoded = reward_tokenizer[0](
         decoded_texts,
         padding=True,
@@ -75,7 +75,7 @@ def score_fast(
     
     reward[~non_term_mask] = 0.0
     reward_unpenalized[~non_term_mask] = 0.0
-    # print("Reward(log_r): ",reward)
+    print("Tokenwise Reward: ",reward)
     return reward, reward_unpenalized
 
 class FrozenModelSentenceGivenPrompt:
@@ -243,6 +243,7 @@ def generate_and_return_termination_logprob(
     action_seq=None,
     skip_rewards=False,
 ):
+    print("Input Prompt Encoded: \n",encoded_prompt)
     # generate and return the probability of terminating at every step
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
     state = encoded_prompt.clone()
@@ -328,14 +329,20 @@ def generate_and_return_termination_logprob(
         # check if all sequences have terminated
         if torch.all(~active_seqs):
             break
+
+    print("Encoded output after generation \n",state)
     log_pf = torch.stack(log_pf, dim=1)
     log_pterm = torch.stack(log_pterm, dim=1)
+    
     if skip_rewards:
         log_r, log_r_unpenalized = None, None
     else:
         # Reward for all intermediate states (except the last one,
         # which is guaranteed to be the termination token)
         log_r, log_r_unpenalized = reward_fn(state[:, :-1])
+    
+    print("Log Prob of termination at each token: \n",log_pterm)
+    print("Log Prob of continuing at each token: \n",log_pf)
     # print(log_pf)
     # print(log_pterm)
     # add a termination token to the end of the sequence
