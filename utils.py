@@ -390,7 +390,7 @@ def modified_subtb_loss(
             subtb_lambda ** (subtraj_len - 1) * (~mask[:, subtraj_len - 1 :]).sum()
         )
     batch_loss /= total_lambda
-    print("SubTrajLoss->Input(log_pf,log_r,log_pterm): "batch_loss)
+    print("SubTrajLoss->Input(log_pf,log_r,log_pterm): " + batch_loss)
 
     return batch_loss
 
