@@ -144,7 +144,7 @@ def get_model(config: DictConfig):
     t2 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-helpful-train")
 
     reward_model = [r1,r2]
-    reward_tokenizer = [t1,t3]
+    reward_tokenizer = [t1,t2]
     classifier = None
 
     # for mod in model.modules():
