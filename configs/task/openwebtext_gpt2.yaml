@@ -6,7 +6,7 @@ data:
   limit_prompts: 100
 
 model:
-  name: "gpt2"
+  name: "Qwen/Qwen2.5-0.5B"
   lora_config:
     _target_: peft.LoraConfig
     target_modules: ["c_attn", "c_proj", "c_fc"]
