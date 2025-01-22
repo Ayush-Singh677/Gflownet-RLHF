@@ -295,8 +295,8 @@ def generate_and_return_termination_logprob(
                     elif current_size > desired_size:
                         vocab_naughty_mask = vocab_naughty_mask[:desired_size]
                     modified_logits[:, vocab_naughty_mask] += vocab_alpha
-                prob = (modified_logits / temperature).softmax(dim=-1)
-                prob = (modified_logits / 0.01).softmax(dim=-1)  # Temperature near 0
+                # prob = (modified_logits / temperature).softmax(dim=-1)
+                prob = (modified_logits / 0.5).softmax(dim=-1)
 
                 token_ids = torch.multinomial(prob, num_samples=1)
                 # token_ids = torch.argmax(prob, dim=-1, keepdim=True)
