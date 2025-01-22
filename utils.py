@@ -284,6 +284,8 @@ def generate_and_return_termination_logprob(
                     # add vocab_alpha to the logits of the unmasked vocab items
                     modified_logits[:, ~vocab_nice_mask] += vocab_alpha
                 if vocab_naughty_mask is not None:
+                    if isinstance(vocab_naughty_mask, np.ndarray):
+                        vocab_naughty_mask = torch.tensor(vocab_naughty_mask, dtype=torch.bool)
                     desired_size = modified_logits.shape[1]
                     current_size = len(vocab_naughty_mask)
                     if current_size < desired_size:
