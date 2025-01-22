@@ -98,6 +98,7 @@ class NextSentenceGFNTask(LightningModule):
             skip_rewards=False,
             action_seq=action_seq,
         )
+        print("Function call over")
         return generated_text, log_pf, log_pterm, log_r, log_r_unpenalized
 
     def training_step(self, prompt, batch_idx):
