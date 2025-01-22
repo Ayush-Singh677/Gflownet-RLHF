@@ -47,7 +47,9 @@ def train(config: DictConfig):
     
     illegal_tokens = [t[0] for t in illegal_tokens]
     # assert all(len(t) == 1 for t in illegal_tokens)
-    illegal_token_mask[illegal_tokens] = True
+    valid_indices = [t for t in illegal_tokens if 0 <= t < len(illegal_token_mask)]
+    illegal_token_mask[valid_indices] = True
+    # illegal_token_mask[illegal_tokens] = True
     illegal_token_mask = illegal_token_mask.numpy()
 
     reward = get_reward(config, end_of_sentence_token_id, illegal_token_mask,reward_model,reward_tokenizer,classifier)
