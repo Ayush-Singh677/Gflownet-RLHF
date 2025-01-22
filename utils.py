@@ -284,7 +284,13 @@ def generate_and_return_termination_logprob(
                     # add vocab_alpha to the logits of the unmasked vocab items
                     modified_logits[:, ~vocab_nice_mask] += vocab_alpha
                 if vocab_naughty_mask is not None:
-                    # add vocab_alpha to the logits of the masked vocab items
+                    desired_size = modified_logits.shape[1]
+                    current_size = len(vocab_naughty_mask)
+                    if current_size < desired_size:
+                        padding = torch.zeros(desired_size - current_size, dtype=torch.bool, device=vocab_naughty_mask.device)
+                        vocab_naughty_mask = torch.cat((vocab_naughty_mask, padding))
+                    elif current_size > desired_size:
+                        vocab_naughty_mask = vocab_naughty_mask[:desired_size]
                     modified_logits[:, vocab_naughty_mask] += vocab_alpha
                 prob = (modified_logits / temperature).softmax(dim=-1)
                 token_ids = torch.multinomial(prob, num_samples=1)
