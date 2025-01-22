@@ -67,7 +67,7 @@ class NextSentenceGFNTask(LightningModule):
         except:
             self.end_of_sentence_token_id = tokenizer.convert_tokens_to_ids(".")
 
-    def forward(self, prompt, n_samples=None, pf_temperature=1.0, action_seq=None):
+    def forward(self, prompt, n_samples=None, pf_temperature=0.7, action_seq=None):
         assert prompt.ndim == 1
         n_samples = self.hparams.n_samples if n_samples is None else n_samples
         prompt = prompt.unsqueeze(0).expand(n_samples, -1)
@@ -129,7 +129,7 @@ class NextSentenceGFNTask(LightningModule):
                     + self.hparams.pf_temp_low
                 )
             else:  # Without tempering
-                pf_temp = 1.0
+                pf_temp = 0.7
             generated_text, log_pf, log_pterm, log_r, log_r_unpenalized = self.forward(
                 prompt, pf_temperature=pf_temp
             )
