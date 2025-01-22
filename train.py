@@ -41,9 +41,9 @@ def train(config: DictConfig):
     ]
     
     for t in illegal_tokens:
-    if len(t) != 1:
-        print(f"Illegal token causing the error: {t}, Length: {len(t)}")
-        break
+        if len(t) != 1:
+            print(f"Illegal token causing the error: {t}, Length: {len(t)}")
+            break
     assert all(len(t) == 1 for t in illegal_tokens)
     
     illegal_tokens = [t[0] for t in illegal_tokens]
