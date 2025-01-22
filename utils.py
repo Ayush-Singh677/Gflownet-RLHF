@@ -261,17 +261,18 @@ def generate_and_return_termination_logprob(
                     modified_logits[prob >= prob.topk(top_k)] = -torch.inf
                 # implement top-p by getting indices in the top-p prob mass and setting the rest to 0
                 if top_p < 1.0:
-                    sorted_probs, _ = torch.sort(prob, dim=-1, descending=True)
+                    sorted_probs, sorted_indices = torch.sort(prob, dim=-1, descending=True)
                     cumsum_prob = torch.cumsum(sorted_probs, dim=-1)
+
                     nucleus = cumsum_prob < top_p
-                    nucleus = torch.cat(
-                        [
-                            nucleus.new_ones(nucleus.shape[:-1] + (1,)),
-                            nucleus[..., :-1],
-                        ],
-                        dim=-1,
-                    )
-                    modified_logits[~nucleus] = -torch.inf
+
+                    nucleus = torch.cat([nucleus.new_ones(nucleus.shape[:-1] + (1,)), nucleus[..., :-1]], dim=-1)
+
+                    mask = torch.zeros_like(prob, dtype=torch.bool)
+                    for idx in range(prob.size(0)):
+                        mask[idx, sorted_indices[idx, nucleus[idx]]] = True
+                    modified_logits[~mask] = -torch.inf
+                
                 if i < min_len:
                     # if we haven't reach the minimum length, set the probability of terminating to 0
                     modified_logits[:, termination_token_id] = -torch.inf
