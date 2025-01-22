@@ -140,11 +140,11 @@ def get_model(config: DictConfig):
     # )
     r1 = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-harmless-train")
     t1 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-harmless-train")
-    r2 = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-helpful-train")
-    t2 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-helpful-train")
+    # r2 = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-helpful-train")
+    # t2 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-helpful-train")
 
-    reward_model = [r1,r2]
-    reward_tokenizer = [t1,t2]
+    reward_model = [r1]
+    reward_tokenizer = [t1]
     classifier = None
 
     # for mod in model.modules():
