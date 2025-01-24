@@ -67,7 +67,7 @@ def score_fast(
         prefix = reward_encoded['input_ids'][:, :skip_first + i]
         
         with torch.no_grad():
-            rewards = [rm.to(prefix.device)(prefix).logits[:, 0].to(device) for rm in reward_model]
+            rewards = [rm(prefix.to(reward_model.device)).logits[:, 0] for rm in reward_model]
             current_reward = rewards[0]
             reward[:, i] = current_reward
             reward_unpenalized[:, i] = current_reward
@@ -249,7 +249,7 @@ def generate_and_return_termination_logprob(
     token_ids = state  # For caching hidden states during generation
     past_key_values = None  # For caching hidden states during generation
     for i in range(max_len + 1):
-        output = model(input_ids=token_ids, past_key_values=past_key_values)
+        output = model(input_ids=token_ids.to(model.device), past_key_values=past_key_values.to(model.device))
         past_key_values = output.past_key_values
         logits = output.logits[:, -1, :]
         if action_seq is None:
