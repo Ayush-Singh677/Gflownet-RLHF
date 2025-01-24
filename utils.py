@@ -8,6 +8,7 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
+from transformers.cache_utils import DynamicCache
 
 def lora_to_base(model):
     model.base_model.disable_adapter_layers()
