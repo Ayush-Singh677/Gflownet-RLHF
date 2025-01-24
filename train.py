@@ -135,7 +135,7 @@ def get_model(config: DictConfig):
         config.task.model.name, quantization_config=bnb_config
     )
     if torch.cuda.device_count() > 1:
-        model = torch.nn.parallel.DataParallel(model,device_ids=[0,1])
+        model = torch.nn.parallel.DataParallel(model,device_ids=[1,0])
 
     if config.task.training.use_4bit:
         model = prepare_model_for_kbit_training(
