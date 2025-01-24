@@ -100,7 +100,7 @@ def train(config: DictConfig):
     )
     data.setup("fit")
     train_probes = [data.train_data[i][0] for i in range(config.task.eval.n_probes)]
-    print(train_probes)
+    # print(train_probes)
     val_probes = [data.val_data[i][0] for i in range(config.task.eval.n_probes)]
 
     task = NextSentenceGFNTask(
