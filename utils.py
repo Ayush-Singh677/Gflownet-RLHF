@@ -240,7 +240,7 @@ def generate_and_return_termination_logprob(
 ):
     # print("Input Prompt Encoded: \n",encoded_prompt)
     # generate and return the probability of terminating at every step
-    device = "cuda"
+    device = "cuda:0"
     
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
     state = encoded_prompt.clone().to(device)
