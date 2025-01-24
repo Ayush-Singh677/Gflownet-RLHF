@@ -10,6 +10,7 @@ from transformers import (
     pipeline,
     AutoModelForSequenceClassification
 )
+from accelerate import Accelerator
 from peft import get_peft_model, prepare_model_for_kbit_training
 from utils import (
     FrozenModelSentenceGivenPrompt,
@@ -20,6 +21,11 @@ from utils import (
 from lightning_module import NextSentenceGFNTask
 from lightning_data import PromptDataModule
 import os
+accelerator = Accelerator()
+if num_gpus > 1:
+        device_map = "balanced_low_0"
+    else:
+        device_map = "auto"
 os.environ["WANDB_MODE"] = "offline"
 
 @hydra.main(version_base=None, config_path="./configs/", config_name="train")
@@ -132,9 +138,8 @@ def get_model(config: DictConfig):
         config.task.model.name, add_bos_token=False
     )
     model = AutoModelForCausalLM.from_pretrained(
-        config.task.model.name, quantization_config=bnb_config
+        config.task.model.name, quantization_config=bnb_config,device_map=device_map,
     )
-    model = model.to("cuda:0")
     # if torch.cuda.device_count() > 1:
     #     model = torch.nn.parallel.DistributedDataParallel(model)
 
