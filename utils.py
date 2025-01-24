@@ -67,7 +67,7 @@ def score_fast(
         prefix = reward_encoded['input_ids'][:, :skip_first + i]
         
         with torch.no_grad():
-            rewards = [rm(prefix.to(reward_model.device)).logits[:, 0] for rm in reward_model]
+            rewards = [rm(prefix.to(rm.device)).logits[:, 0] for rm in reward_model]
             current_reward = rewards[0]
             reward[:, i] = current_reward
             reward_unpenalized[:, i] = current_reward
