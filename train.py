@@ -24,7 +24,6 @@ from lightning_data import PromptDataModule
 import os
 import json
 
-accelerator = Accelerator()
 num_gpus = torch.cuda.device_count()
 if num_gpus > 1:
     device_map = "balanced_low_0"
