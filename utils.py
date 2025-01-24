@@ -246,7 +246,7 @@ def generate_and_return_termination_logprob(
         action_seq = action_seq.to(device)
     
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
-    state = encoded_prompt.clone()
+    state = encoded_prompt.clone().to(device)
     action_seq = None
     # print("Encoded Prompt: ",state)
     log_pf = []
