@@ -44,8 +44,14 @@ class PromptDataset(Dataset):
         return len(self.prompts)
 
     def __getitem__(self, index):
-        prompt = self.tokenizer(
+        encoded = self.tokenizer(
             self.prompts[index],
             return_tensors="pt",
-        )["input_ids"]
-        return prompt
+            padding="max_length",  # Add padding
+            max_length=self.tokenizer.model_max_length,
+            truncation=True
+        )
+        return {
+            "input_ids": encoded["input_ids"].squeeze(0),
+            "attention_mask": encoded["attention_mask"].squeeze(0)
+        }
