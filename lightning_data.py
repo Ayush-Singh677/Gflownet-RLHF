@@ -34,7 +34,6 @@ class PromptDataModule(LightningDataModule):
     def val_dataloader(self):
         return DataLoader(self.val_data, batch_size=4, num_workers=0)
 
-
 class PromptDataset(Dataset):
     def __init__(self, prompts, tokenizer):
         self.tokenizer = tokenizer
@@ -44,14 +43,8 @@ class PromptDataset(Dataset):
         return len(self.prompts)
 
     def __getitem__(self, index):
-        encoded = self.tokenizer(
+        prompt = self.tokenizer(
             self.prompts[index],
             return_tensors="pt",
-            padding="max_length",  # Add padding
-            max_length=self.tokenizer.model_max_length,
-            truncation=True
-        )
-        return {
-            "input_ids": encoded["input_ids"].squeeze(0),
-            "attention_mask": encoded["attention_mask"].squeeze(0)
-        }
+        )["input_ids"]
+        return prompt
