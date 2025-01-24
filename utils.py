@@ -240,6 +240,11 @@ def generate_and_return_termination_logprob(
 ):
     # print("Input Prompt Encoded: \n",encoded_prompt)
     # generate and return the probability of terminating at every step
+    device = next(model.parameters()).device  # Get model's device
+    encoded_prompt = encoded_prompt.to(device)
+    if action_seq is not None:
+        action_seq = action_seq.to(device)
+    
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
     state = encoded_prompt.clone()
     action_seq = None
