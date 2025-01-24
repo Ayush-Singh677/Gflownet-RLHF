@@ -43,9 +43,9 @@ def train(config: DictConfig):
             "offload_optimizer": {"device": "cpu", "pin_memory": True},
             "offload_param": {"device": "cpu", "pin_memory": True},
             "overlap_comm": True,
-            "contiguous_memory_optimization": True
         },
         "zero_force_transfer_to_cpu": True,
+        "train_micro_batch_size_per_gpu": 1,
         "optimizer": {
             "type": "Adam",
             "params": {
