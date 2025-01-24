@@ -53,6 +53,10 @@ def train(config: DictConfig):
             }
         }
     }
+
+    os.makedirs("./configs", exist_ok=True)
+    with open("./configs/deepspeed_config.json", "w") as f:
+        json.dump(deepspeed_config, f)
     
     model, tokenizer,reward_model,reward_tokenizer,classifier = get_model(config)
     try:  # Some tokenizers encode a "." differently when it is the first token
@@ -134,7 +138,7 @@ def train(config: DictConfig):
         if isinstance(config.logger, bool)
         else hydra.utils.instantiate(config.logger),
         callbacks=[hydra.utils.instantiate(c) for c in config.task.callbacks],
-        # deepspeed_config=deepspeed_config
+        strategy_config="./configs/deepspeed_config.json"
     )
 
     # Fix a bug that arises when using 4-bit quantized models.
