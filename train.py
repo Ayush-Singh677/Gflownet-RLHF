@@ -135,7 +135,7 @@ def get_model(config: DictConfig):
         config.task.model.name, quantization_config=bnb_config
     )
     if torch.cuda.device_count() > 1:
-        model = torch.nn.parallel.DistributedDataParallel(model)
+        model = torch.nn.parallel.DataParallel(model)
 
     if config.task.training.use_4bit:
         model = prepare_model_for_kbit_training(
@@ -160,7 +160,6 @@ def get_model(config: DictConfig):
     #         mod.p = 0.0
 
     return model, tokenizer, reward_model, reward_tokenizer, classifier
-
 
 def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask,reward_model,reward_tokenizer,classifier):
     if config.task.reward.sentence_validator is None:
