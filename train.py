@@ -32,7 +32,28 @@ os.environ["WANDB_MODE"] = "offline"
 @hydra.main(version_base=None, config_path="./configs/", config_name="train")
 def train(config: DictConfig):
     pl.seed_everything(config.seed, workers=True)
-
+    
+    deepspeed_config = {
+        "zero_allow_untested_optimizer": True,
+        "zero_optimization": {
+            "stage": 3,  # Enable full parameter partitioning
+            "offload_optimizer": {"device": "cpu", "pin_memory": True},
+            "offload_param": {"device": "cpu", "pin_memory": True},
+            "overlap_comm": True,
+            "contiguous_memory_optimization": True
+        },
+        "zero_force_transfer_to_cpu": True,
+        "optimizer": {
+            "type": "Adam",
+            "params": {
+                "lr": config.task.training.lr,
+                "betas": [0.9, 0.95],
+                "eps": 1e-8,
+                "weight_decay": 1e-6
+            }
+        }
+    }
+    
     model, tokenizer,reward_model,reward_tokenizer,classifier = get_model(config)
     try:  # Some tokenizers encode a "." differently when it is the first token
         end_of_sentence_token_id = tokenizer.encode(
@@ -103,13 +124,17 @@ def train(config: DictConfig):
     )
 
     trainer = pl.Trainer(
-        accelerator=config.device.accelerator,
+        accelerator="gpu",
+        devices=-1,  # Use all available GPUs
+        strategy="deepspeed_stage_3",  # DeepSpeed Zero-3 strategy
+        precision=16,  # Mixed precision training
         max_epochs=config.task.training.epochs,
         accumulate_grad_batches=config.task.training.accumulate_grad_batches,
-        logger=config.logger
+        logger=config.logger 
         if isinstance(config.logger, bool)
         else hydra.utils.instantiate(config.logger),
         callbacks=[hydra.utils.instantiate(c) for c in config.task.callbacks],
+        deepspeed_config=deepspeed_config
     )
 
     # Fix a bug that arises when using 4-bit quantized models.
