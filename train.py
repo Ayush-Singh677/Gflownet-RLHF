@@ -21,6 +21,8 @@ from utils import (
 from lightning_module import NextSentenceGFNTask
 from lightning_data import PromptDataModule
 import os
+import json
+
 accelerator = Accelerator()
 num_gpus = torch.cuda.device_count()
 if num_gpus > 1:
