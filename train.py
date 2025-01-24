@@ -23,9 +23,9 @@ from lightning_data import PromptDataModule
 import os
 accelerator = Accelerator()
 if num_gpus > 1:
-        device_map = "balanced_low_0"
-    else:
-        device_map = "auto"
+    device_map = "balanced_low_0"
+else:
+    device_map = "auto"
 os.environ["WANDB_MODE"] = "offline"
 
 @hydra.main(version_base=None, config_path="./configs/", config_name="train")
