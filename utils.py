@@ -249,7 +249,7 @@ def generate_and_return_termination_logprob(
     token_ids = state  # For caching hidden states during generation
     past_key_values = None  # For caching hidden states during generation
     for i in range(max_len + 1):
-        output = model(input_ids=token_ids.to(model.module.device), past_key_values=past_key_values.to(model.module.device))
+        output = model(input_ids=token_ids, past_key_values=past_key_values)
         past_key_values = output.past_key_values
         logits = output.logits[:, -1, :]
         if action_seq is None:
