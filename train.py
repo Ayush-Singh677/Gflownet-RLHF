@@ -2,6 +2,7 @@ from types import MethodType
 import hydra
 import torch
 import pytorch_lightning as pl
+from pytorch_lightning.strategies import DeepSpeedStrategy
 from omegaconf import DictConfig, OmegaConf
 from transformers import (
     AutoTokenizer,
