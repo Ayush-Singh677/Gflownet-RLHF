@@ -133,7 +133,7 @@ def train(config: DictConfig):
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=-1,  # Use all available GPUs
-        strategy="deepspeed_stage_3",  # DeepSpeed Zero-3 strategy
+        # strategy="deepspeed_stage_3",  # DeepSpeed Zero-3 strategy
         precision=16,  # Mixed precision training
         max_epochs=config.task.training.epochs,
         accumulate_grad_batches=config.task.training.accumulate_grad_batches,
@@ -141,7 +141,7 @@ def train(config: DictConfig):
         if isinstance(config.logger, bool)
         else hydra.utils.instantiate(config.logger),
         callbacks=[hydra.utils.instantiate(c) for c in config.task.callbacks],
-        strategy_config="./configs/deepspeed_config.json"
+        strategy=DeepSpeedStrategy(config=deepspeed_config)    
     )
 
     # Fix a bug that arises when using 4-bit quantized models.
