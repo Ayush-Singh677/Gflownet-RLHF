@@ -240,8 +240,8 @@ def generate_and_return_termination_logprob(
 ):
     # print("Input Prompt Encoded: \n",encoded_prompt)
     # generate and return the probability of terminating at every step
-    device = "cuda:0"
-    
+    model_device = next(model.parameters()).device
+
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
     state = encoded_prompt.clone().to(device)
     action_seq = None
@@ -251,7 +251,7 @@ def generate_and_return_termination_logprob(
     token_ids = state  # For caching hidden states during generation
     past_key_values = None  # For caching hidden states during generation
     for i in range(max_len + 1):
-        output = model(input_ids=token_ids.to(device), past_key_values=past_key_values)
+        output = model(input_ids=token_ids.to(model_device), past_key_values=past_key_values.to(model_device) if past_key_values else None)
         past_key_values = output.past_key_values
         logits = output.logits[:, -1, :]
         if action_seq is None:
