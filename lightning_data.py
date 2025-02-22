@@ -20,10 +20,11 @@ class PromptDataModule(LightningDataModule):
         self.tokenizer = tokenizer
         self.train_data = None
         self.val_data = None
+        self.dataset_name = dataset_name
 
     def setup(self, stage=None):
-        dataset = load_dataset(self.hparams.dataset_name, split=self.hparams.split)
-        prompts = dataset[self.hparams.text_column]
+        dataset = load_dataset(self.dataset_name, split="train")
+        prompts = dataset["instruction"]
         
         if self.hparams.limit_prompts is not None:
             prompts = prompts[: self.hparams.limit_prompts]
