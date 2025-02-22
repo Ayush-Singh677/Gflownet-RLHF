@@ -93,7 +93,7 @@ def train(config: DictConfig):
     )
 
     data = PromptDataModule(
-        data_path=config.task.data.path,
+        dataset_name="openbmb/UltraFeedback",
         tokenizer=tokenizer,
         train_size=config.task.data.train_size,
         limit_prompts=config.task.data.limit_prompts,
