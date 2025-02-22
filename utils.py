@@ -252,7 +252,8 @@ def generate_and_return_termination_logprob(
     token_ids = state  # For caching hidden states during generation
     past_key_values = DynamicCache()
     for i in range(max_len + 1):
-        output = model(input_ids=token_ids.to(model_device), past_key_values=past_key_values,use_cache=True)
+        # output = model(input_ids=token_ids.to(model_device), past_key_values=past_key_values,use_cache=True)
+        output = model(input_ids=token_ids.to(model_device))
         past_key_values = output.past_key_values
         logits = output.logits[:, -1, :]
         if action_seq is None:
