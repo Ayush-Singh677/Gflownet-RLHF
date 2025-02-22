@@ -1,5 +1,6 @@
 from torch.utils.data import DataLoader, Dataset
 from pytorch_lightning import LightningDataModule
+from datasets import load_dataset
 import warnings
 
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
@@ -7,8 +8,10 @@ warnings.filterwarnings("ignore", ".*does not have many workers.*")
 class PromptDataModule(LightningDataModule):
     def __init__(
         self,
-        data_path,
+        dataset_name,
         tokenizer,
+        split="train",
+        text_column="prompt",
         train_size=0.95,
         limit_prompts=None,
     ):
@@ -19,11 +22,12 @@ class PromptDataModule(LightningDataModule):
         self.val_data = None
 
     def setup(self, stage=None):
-        with open(self.hparams.data_path, "r") as f:
-            prompts = f.readlines()
-        prompts = [line.rstrip("\n") for line in prompts]
+        dataset = load_dataset(self.hparams.dataset_name, split=self.hparams.split)
+        prompts = dataset[self.hparams.text_column]
+        
         if self.hparams.limit_prompts is not None:
             prompts = prompts[: self.hparams.limit_prompts]
+        
         num_train = int(len(prompts) * self.hparams.train_size)
         self.train_data = PromptDataset(prompts[:num_train], self.tokenizer)
         self.val_data = PromptDataset(prompts[num_train:], self.tokenizer)
