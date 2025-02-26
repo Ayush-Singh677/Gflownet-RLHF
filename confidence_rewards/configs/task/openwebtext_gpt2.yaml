@@ -6,7 +6,7 @@ data:
   limit_prompts: 100
 
 model:
-  name: "gpt2"
+  name: "Qwen/Qwen2.5-0.5B"
   lora_config:
     _target_: peft.LoraConfig
     target_modules: ["c_attn", "c_proj", "c_fc"]
@@ -22,10 +22,10 @@ training:
   pf_temp_low: 0.5
   pf_temp_prob: 0.666
   use_buffer_prob: 0.25
-  n_samples: 10
+  n_samples: 5
   lr: 0.0001
   accumulate_grad_batches: 25
-  epochs: 1
+  epochs: 10
   use_4bit: False
 
 eval:
@@ -55,7 +55,7 @@ callbacks:
 
 constraints:
   min_sentence_len: 1
-  max_sentence_len: 32
+  max_sentence_len: 128
   illegal_tokens: [
     "<|endoftext|>",
     "\n", "\n\n", "\t", "\"", "\"\"", "\"\"\"",
