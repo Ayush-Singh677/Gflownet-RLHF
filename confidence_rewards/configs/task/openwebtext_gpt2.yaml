@@ -3,7 +3,7 @@ name: "openwebtext"
 data:
   path: "data/openwebtext/prompts.txt"
   train_size: 0.99
-  limit_prompts: 100
+  limit_prompts: 1000
 
 model:
   name: "Qwen/Qwen2.5-0.5B"
@@ -22,10 +22,10 @@ training:
   pf_temp_low: 0.5
   pf_temp_prob: 0.666
   use_buffer_prob: 0.25
-  n_samples: 5
+  n_samples: 2
   lr: 0.0001
   accumulate_grad_batches: 25
-  epochs: 10
+  epochs: 5
   use_4bit: False
 
 eval:
