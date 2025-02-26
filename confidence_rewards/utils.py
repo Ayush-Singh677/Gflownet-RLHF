@@ -47,6 +47,10 @@ def score_fast(
     # get rid of the first few tokens
     logits = logits[:, skip_first - 1 :]
     # score the log probability of the input sequence while ignoring termination and padding tokens
+    if vocab_naughty_mask.shape[0] < logits.shape[-1]:
+        padding = np.zeros(logits.shape[-1] - vocab_naughty_mask.shape[0], dtype=bool)
+        vocab_naughty_mask = np.concatenate([vocab_naughty_mask, padding])
+
     if vocab_nice_mask is not None:
         # add vocab_alpha to the logits of the unmasked vocab items
         logits[:, :, ~vocab_nice_mask] += vocab_alpha
