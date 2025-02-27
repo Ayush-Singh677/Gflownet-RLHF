@@ -38,7 +38,7 @@ def train(config: DictConfig):
     deepspeed_config = {
         "zero_allow_untested_optimizer": True,
         "zero_optimization": {
-            "stage": 3,  # Enable full parameter partitioning
+            "stage": 2,  # Enable full parameter partitioning
             "offload_optimizer": {"device": "cpu", "pin_memory": True},
             "offload_param": {"device": "cpu", "pin_memory": True},
             "overlap_comm": True,
