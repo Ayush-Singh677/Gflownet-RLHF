@@ -94,7 +94,7 @@ def score_fast(
             )
 
             if reward_model_tokenizer is not None:
-                reward_input = tokenizer.decode(current_sequence[0])
+                reward_input = original_tokenizer.decode(current_sequence[0])
                 reward_input = reward_model_tokenizer(reward_input, return_tensors="pt")
             else:
                 reward_input = current_sequence
