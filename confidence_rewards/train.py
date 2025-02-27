@@ -132,7 +132,7 @@ def train(config: DictConfig):
         accelerator="gpu",
         devices=-1,  # Use all available GPUs
         # strategy="deepspeed_stage_3",  # DeepSpeed Zero-3 strategy
-        precision=16,  # Mixed precision training
+        # precision=16,  # Mixed precision training
         max_epochs=config.task.training.epochs,
         accumulate_grad_batches=config.task.training.accumulate_grad_batches,
         logger=config.logger 
