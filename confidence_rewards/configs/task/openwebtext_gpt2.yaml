@@ -6,7 +6,7 @@ data:
   limit_prompts: 1000
 
 model:
-  name: "Qwen/Qwen2.5-0.5B"
+  name: "HuggingFaceTB/SmolLM2-360M"
   lora_config:
     _target_: peft.LoraConfig
     target_modules: ["c_attn", "c_proj", "c_fc"]
