@@ -166,6 +166,7 @@ def get_model(config: DictConfig):
     tokenizer = AutoTokenizer.from_pretrained(
         config.task.model.name, add_bos_token=False
     )
+    tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         config.task.model.name, quantization_config=bnb_config,device_map=device_map,
     )
