@@ -24,11 +24,12 @@ from lightning_data import PromptDataModule
 import os
 import json
 
-num_gpus = torch.cuda.device_count()
-if num_gpus > 1:
-    device_map = "balanced_low_0"
-else:
-    device_map = "auto"
+# num_gpus = torch.cuda.device_count()
+# if num_gpus > 1:
+#     device_map = "balanced_low_0"
+# else:
+#     device_map = "auto"
+device_map = "auto"
 os.environ["WANDB_MODE"] = "offline"
 
 @hydra.main(version_base=None, config_path="./configs/", config_name="train")
@@ -38,7 +39,7 @@ def train(config: DictConfig):
     deepspeed_config = {
         "zero_allow_untested_optimizer": True,
         "zero_optimization": {
-            "stage": 3,  # Enable full parameter partitioning
+            "stage": 2,  # Enable full parameter partitioning
             "offload_optimizer": {"device": "cpu", "pin_memory": True},
             "offload_param": {"device": "cpu", "pin_memory": True},
             "overlap_comm": True,
@@ -60,8 +61,8 @@ def train(config: DictConfig):
     with open("./configs/deepspeed_config.json", "w") as f:
         json.dump(deepspeed_config, f)
     
-    model, tokenizer,reward_model,reward_tokenizer,classifier = get_model(config)
-    try:  # Some tokenizers encode a "." differently when it is the first token
+    model, tokenizer,reward_model, reward_model_tokenizer = get_model(config)
+    try:
         end_of_sentence_token_id = tokenizer.encode(
             "A sentence.", add_special_tokens=False
         )[-1]
@@ -86,7 +87,7 @@ def train(config: DictConfig):
     # illegal_token_mask[illegal_tokens] = True
     illegal_token_mask = illegal_token_mask.numpy()
 
-    reward = get_reward(config, end_of_sentence_token_id, illegal_token_mask,reward_model,reward_tokenizer,classifier)
+    reward = get_reward(config, end_of_sentence_token_id, illegal_token_mask,reward_model=reward_model, reward_interval=5,original_tokenizer=tokenizer,reward_model_tokenizer=reward_model_tokenizer)
     reward_buffer = ReplayBuffer(
         buffer_size=config.task.reward.buffer_size,
         termination_token_id=end_of_sentence_token_id,
@@ -126,22 +127,23 @@ def train(config: DictConfig):
         diversity_metric=config.task.eval.diversity_metric,
         use_4bit=config.task.training.use_4bit,
         reward_model=reward_model,
-        reward_tokenizer=reward_tokenizer,
-        classifier=classifier
+        reward_interval=5,
+        original_tokenizer=tokenizer,
+        reward_model_tokenizer=reward_model_tokenizer,
     )
 
     trainer = pl.Trainer(
-        accelerator="gpu",
+        accelerator="cuda",
         devices=-1,  # Use all available GPUs
         # strategy="deepspeed_stage_3",  # DeepSpeed Zero-3 strategy
-        precision=16,  # Mixed precision training
+        # precision=16,  # Mixed precision training
         max_epochs=config.task.training.epochs,
         accumulate_grad_batches=config.task.training.accumulate_grad_batches,
         logger=config.logger 
         if isinstance(config.logger, bool)
         else hydra.utils.instantiate(config.logger),
         callbacks=[hydra.utils.instantiate(c) for c in config.task.callbacks],
-        strategy=DeepSpeedStrategy(config=deepspeed_config)    
+        # strategy=DeepSpeedStrategy(config=deepspeed_config)    
     )
 
     # Fix a bug that arises when using 4-bit quantized models.
@@ -166,41 +168,22 @@ def get_model(config: DictConfig):
     else:
         bnb_config = None
 
-    # Get the model
     tokenizer = AutoTokenizer.from_pretrained(
         config.task.model.name, add_bos_token=False
     )
+    tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         config.task.model.name, quantization_config=bnb_config,device_map=device_map,
     )
-    # if torch.cuda.device_count() > 1:
-    #     model = torch.nn.parallel.DistributedDataParallel(model)
+    reward_model = AutoModelForSequenceClassification.from_pretrained(
+        "tuhink/hacking-rewards-general-train",device_map=device_map
+    )
+    reward_model_tokenizer = AutoTokenizer.from_pretrained(
+        "tuhink/hacking-rewards-general-train"
+    )
+    return model, tokenizer,reward_model, reward_model_tokenizer
 
-    if config.task.training.use_4bit:
-        model = prepare_model_for_kbit_training(
-            model,
-            use_gradient_checkpointing=False,  # Doesn't save memory when generating autoregressively compared to caching
-        )
-
-    # model = get_peft_model(
-    #     model, hydra.utils.instantiate(config.task.model.lora_config)
-    # )
-    r1 = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-harmless-train")
-    t1 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-harmless-train")
-    # r2 = AutoModelForSequenceClassification.from_pretrained("tuhink/hacking-rewards-helpful-train")
-    # t2 = AutoTokenizer.from_pretrained("tuhink/hacking-rewards-helpful-train")
-
-    reward_model = [r1]
-    reward_tokenizer = [t1]
-    classifier = None
-
-    # for mod in model.modules():
-    #     if isinstance(mod, torch.nn.Dropout):
-    #         mod.p = 0.0
-
-    return model, tokenizer, reward_model, reward_tokenizer, classifier
-
-def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask,reward_model,reward_tokenizer,classifier):
+def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask,reward_model=None, reward_interval=None,original_tokenizer=None,reward_model_tokenizer=None):
     if config.task.reward.sentence_validator is None:
         sentence_validator, valid_sentence_alpha = None, None
     elif config.task.reward.sentence_validator == "rule":
@@ -224,9 +207,10 @@ def get_reward(config: DictConfig, sentence_token_id, illegal_token_mask,reward_
         vocab_naughty_mask=illegal_token_mask,
         sentence_validator=sentence_validator,
         valid_sentence_alpha=valid_sentence_alpha,
-        reward_model = reward_model,
-        reward_tokenizer = reward_tokenizer,
-        classifier = classifier
+        reward_model=reward_model,
+        reward_interval=reward_interval,
+        original_tokenizer=original_tokenizer,
+        reward_model_tokenizer=reward_model_tokenizer,
     )
 
     return reward

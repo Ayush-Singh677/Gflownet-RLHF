@@ -34,10 +34,10 @@ class PromptDataModule(LightningDataModule):
         self.val_data = PromptDataset(prompts[num_train:], self.tokenizer)
 
     def train_dataloader(self):
-        return DataLoader(self.train_data, shuffle=True, batch_size=4, num_workers=0)
+        return DataLoader(self.train_data, shuffle=True, batch_size=None, num_workers=0)
 
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=4, num_workers=0)
+        return DataLoader(self.val_data, batch_size=None, num_workers=0)
 
 class PromptDataset(Dataset):
     def __init__(self, prompts, tokenizer):
@@ -51,5 +51,7 @@ class PromptDataset(Dataset):
         prompt = self.tokenizer(
             self.prompts[index],
             return_tensors="pt",
+            truncation=True, 
+            max_length=512, 
         )["input_ids"]
         return prompt

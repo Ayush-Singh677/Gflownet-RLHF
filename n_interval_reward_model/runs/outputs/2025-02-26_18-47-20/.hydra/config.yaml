@@ -1,0 +1,223 @@
+seed: 27
+save_dir: runs/
+logger:
+  _target_: pytorch_lightning.loggers.WandbLogger
+  name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+  project: LM-GFN-next-sentence-${task.name}
+  save_dir: ${save_dir}
+  offline: false
+task:
+  name: openwebtext
+  data:
+    path: data/openwebtext/prompts.txt
+    train_size: 0.95
+    limit_prompts: 100
+  model:
+    name: gpt2
+    lora_config:
+      _target_: peft.LoraConfig
+      target_modules:
+      - c_attn
+      - c_proj
+      - c_fc
+      r: 64
+      lora_alpha: 16
+      lora_dropout: 0.1
+      bias: none
+      fan_in_fan_out: true
+  training:
+    subtb_lambda: 1.0
+    pf_temp_high: 2.0
+    pf_temp_low: 0.5
+    pf_temp_prob: 0.666
+    use_buffer_prob: 0.25
+    n_samples: 10
+    lr: 0.0001
+    accumulate_grad_batches: 25
+    epochs: 1
+    use_4bit: false
+  eval:
+    n_probes: 5
+    diversity_metric: sequence_embedding
+  reward:
+    temp_start: 0.8
+    temp_end: 0.6
+    temp_horizon: 750
+    vocab_alpha: -50
+    sentence_validator: null
+    buffer_size: 50
+  callbacks:
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: val/logP(s) (avg)
+    mode: max
+    save_last: true
+    dirpath: ${save_dir}/checkpoints/${now:%Y-%m-%d}_${now:%H-%M-%S}
+    filename: epoch={epoch:03d}
+    auto_insert_metric_name: true
+  - _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: val/logP(s) (avg)
+    mode: max
+    patience: 10
+  constraints:
+    min_sentence_len: 1
+    max_sentence_len: 32
+    illegal_tokens:
+    - <|endoftext|>
+    - '
+
+      '
+    - '
+
+
+      '
+    - "\t"
+    - '"'
+    - '""'
+    - '"""'
+    - http
+    - https
+    - ://
+    - www
+    - Â
+    - '"?'
+    - ?"
+    - $$
+    - $$$$
+    - '@@'
+    - '@@@@'
+    - '@@@@@@@@'
+    - '##'
+    - '###'
+    - '####'
+    - '########'
+    - '################'
+    - '################################'
+    - '%%'
+    - '%%%%'
+    - ^
+    - ^^
+    - ^^^^
+    - '&&'
+    - '|'
+    - '||'
+    - '||||'
+    - '~'
+    - ~~
+    - ~~~~
+    - ~~~~~~~~
+    - ~~~~~~~~~~~~~~~~
+    - '!'
+    - '!!'
+    - '!!!'
+    - '!!!!'
+    - '!!!!!'
+    - '!!!!!!!!'
+    - '?'
+    - ??
+    - ???
+    - ????
+    - ?????
+    - ????????
+    - ..
+    - '...'
+    - '....'
+    - '.....'
+    - '......'
+    - '.......'
+    - '........'
+    - '.........'
+    - '.............'
+    - '................'
+    - '..................'
+    - '........................'
+    - '................................'
+    - '................................................................'
+    - '**'
+    - '***'
+    - '****'
+    - '*****'
+    - '********'
+    - '************'
+    - '****************'
+    - '********************************'
+    - --
+    - '---'
+    - '----'
+    - '-----'
+    - '------'
+    - '-------'
+    - '--------'
+    - '---------'
+    - '----------'
+    - '-----------'
+    - '------------'
+    - '-------------'
+    - '--------------'
+    - '---------------'
+    - '----------------'
+    - '--------------------'
+    - '------------------------'
+    - '--------------------------------'
+    - '------------------------------------------------'
+    - '--------------------------------------------------------'
+    - '----------------------------------------------------------------'
+    - ==
+    - ===
+    - ====
+    - ======
+    - ========
+    - ============
+    - ================
+    - ================================
+    - ================================================================
+    - __
+    - ___
+    - ____
+    - _____
+    - ______
+    - _______
+    - ________
+    - ________________
+    - ________________________
+    - ________________________________
+    - ________________________________________________________________
+    - A
+    - B
+    - C
+    - D
+    - E
+    - F
+    - G
+    - H
+    - I
+    - J
+    - K
+    - L
+    - M
+    - 'N'
+    - O
+    - P
+    - Q
+    - R
+    - S
+    - T
+    - U
+    - V
+    - W
+    - X
+    - 'Y'
+    - Z
+    - US
+    - Mr
+    - Mrs
+    - M
+    - Ms
+    - Dr
+    - Prof
+    - Jr
+    - St
+    - Av
+device:
+  accelerator: cuda
+  count: 1
+  kind: ''

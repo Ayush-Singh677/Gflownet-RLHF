@@ -21,40 +21,53 @@ def base_to_lora(model):
 @torch.no_grad()
 def score_fast(
     model,
-    tokenizer,
     encoded_input,
     termination_token_id,
     min_len,
     skip_first,
+    reward_model=None,
+    reward_interval=None,
+    original_tokenizer=None,  # Original tokenizer used for encoded_input
+    reward_model_tokenizer=None,  # Reward model's tokenizer
     vocab_nice_mask=None,
     vocab_naughty_mask=None,
     vocab_alpha=-99,
     prompt_cache=None,
-    reward_model=None,
-    reward_tokenizer=None,
-    classifier=None,
 ):
-    batch_size = encoded_input.shape[0]
-    seq_length = encoded_input.shape[1] - skip_first
-    device = encoded_input.device
-    
-    decoded_texts = tokenizer.batch_decode(encoded_input, skip_special_tokens=True)
-    # print("Decoded output after generation: \n",decoded_texts)
-    reward_encoded = reward_tokenizer[0](
-        decoded_texts,
-        padding=True,
-        truncation=True,
-        return_tensors="pt"
-    ).to(device)
-    
-    if vocab_nice_mask is not None and not isinstance(vocab_nice_mask, torch.Tensor):
-        vocab_nice_mask = torch.from_numpy(vocab_nice_mask)
-    if vocab_naughty_mask is not None and not isinstance(vocab_naughty_mask, torch.Tensor):
-        vocab_naughty_mask = torch.from_numpy(vocab_naughty_mask)
-    
-    reward = torch.zeros(batch_size, seq_length + 1).to(device)
-    reward_unpenalized = torch.zeros(batch_size, seq_length + 1).to(device)
-    
+    if prompt_cache is None:
+        logits = model(encoded_input).logits
+    else:
+        # prompt_cache[1] contains past_key_values which need to be reshaped to the right batch size from encoded_input
+        batched_prompt_cache = tuple(
+            tuple(
+                [
+                    prompt_cache[1][i][j].repeat(encoded_input.shape[0], 1, 1, 1)
+                    for j in range(len(prompt_cache[1][i]))
+                ]
+            )
+            for i in range(len(prompt_cache[1]))
+        )
+        logits = model(encoded_input, past_key_values=batched_prompt_cache).logits
+    # get rid of the first few tokens
+    logits = logits[:, skip_first - 1 :]
+    # score the log probability of the input sequence while ignoring termination and padding tokens
+    if vocab_naughty_mask.shape[0] < logits.shape[-1]:
+        padding = np.zeros(logits.shape[-1] - vocab_naughty_mask.shape[0], dtype=bool)
+        vocab_naughty_mask = np.concatenate([vocab_naughty_mask, padding])
+    if vocab_nice_mask is not None:
+        # add vocab_alpha to the logits of the unmasked vocab items
+        logits[:, :, ~vocab_nice_mask] += vocab_alpha
+    elif vocab_naughty_mask is not None:
+        # add vocab_alpha to the logits of the masked vocab items
+        logits[:, :, vocab_naughty_mask] += vocab_alpha
+    logprob = logits.log_softmax(-1)
+    token_ids = encoded_input[:, skip_first:].unsqueeze(-1)
+    logPF = logprob[:, :-1].gather(-1, token_ids).squeeze(-1)
+    logP = logPF.cumsum(dim=-1)  # logP(generated[:i+1] | prompt)
+    reward = logprob[
+        :, :, termination_token_id
+    ]  # logP(generated[i+1]=term | prompt + generated[:i+1])
+    reward[:, 1:] += logP  # logP(generated[:i] + term | prompt)
     non_term_mask = (encoded_input != termination_token_id)[:, skip_first:]
     non_term_mask = torch.cat(
         (
@@ -62,21 +75,83 @@ def score_fast(
             non_term_mask,
         ),
         dim=-1,
-    )
-    
-    for i in range(seq_length + 1):
-        prefix = reward_encoded['input_ids'][:, :skip_first + i]
-        
-        with torch.no_grad():
-            rewards = [rm(prefix.to(rm.device)).logits[:, 0] for rm in reward_model]
-            current_reward = rewards[0]
-            reward[:, i] = current_reward
-            reward_unpenalized[:, i] = current_reward
-    
+    )  # Start (i.e., empty) state has never terminated
     reward[~non_term_mask] = 0.0
-    reward_unpenalized[~non_term_mask] = 0.0
-    # print("Tokenwise Reward: ",reward)
+    reward_unpenalized = reward.clone()
+    reward = torch.where(non_term_mask.cumsum(dim=-1) - 1 < min_len, -99, reward)
+    
+    import torch.nn.functional as F
+    
+    # Apply reward model at specified intervals if all required components are provided
+    if (reward_model is not None and reward_interval is not None and 
+            original_tokenizer is not None and reward_model_tokenizer is not None):
+        
+        seq_len = reward.shape[1]
+        batch_size = encoded_input.shape[0]
+        
+        # Determine which positions should use the reward model
+        reward_model_positions = torch.zeros_like(reward, dtype=torch.bool)
+        for i in range(0, seq_len, reward_interval):
+            if i < seq_len:
+                reward_model_positions[:, i] = True
+        
+        # Process each sequence in the batch
+        for b in range(batch_size):
+            # Get the text from the original encoding
+            # First decode the tokens using the original tokenizer
+            original_tokens = encoded_input[b].cpu().numpy()
+            decoded_text = original_tokenizer.decode(original_tokens)
+            
+            # Re-encode with the reward model's tokenizer
+            reward_model_tokens = reward_model_tokenizer.encode(decoded_text, return_tensors="pt")
+            
+            # Get reward model outputs
+            with torch.no_grad():
+                outputs = reward_model(reward_model_tokens.to(encoded_input.device))
+                
+                # Extract rewards using the specified method
+                logits = outputs.logits  # Shape: (1, num_tokens, num_classes) or similar
+                reward_values = F.softmax(logits, dim=-1)  # Convert logits to probabilities
+                
+                # If the reward is a scalar per token, you might need to select a specific class
+                # or compute a weighted sum based on your specific reward model
+                # For example, if positive class is at index 1:
+                # reward_values = reward_values[:, :, 1]  # Extract positive class probability
+            
+            # Map reward model outputs back to original token positions
+            # This is a simplified mapping and may need refinement based on tokenization differences
+            original_seq_len = len(original_tokens)
+            reward_model_seq_len = reward_values.shape[1]
+            
+            # Simple length-based alignment - adjust this based on your specific tokenizers
+            alignment_ratio = reward_model_seq_len / original_seq_len
+            
+            # For each interval position, map and replace the reward
+            for pos in range(seq_len):
+                if reward_model_positions[b, pos]:
+                    # Calculate the corresponding position in reward model outputs
+                    # Skip the prompt tokens (skip_first) in the calculation
+                    orig_token_idx = pos + skip_first
+                    if orig_token_idx >= original_seq_len:
+                        continue
+                        
+                    reward_model_idx = int(orig_token_idx * alignment_ratio)
+                    if reward_model_idx < reward_values.shape[1]:
+                        # Replace the reward with the softmax value
+                        # If reward_values has multiple classes, you might need to select
+                        # a specific class or compute a metric from them
+                        reward_value = reward_values[0, reward_model_idx].squeeze().tolist()
+                        
+                        # If reward_value is a list (multiple classes), you might need to
+                        # select one or compute a weighted sum
+                        if isinstance(reward_value, list):
+                            # Example: take the first class or a specific class
+                            reward_value = reward_value[0]  # Adjust based on your needs
+                        
+                        reward[b, pos] = reward_value
+    
     return reward, reward_unpenalized
+
 
 class FrozenModelSentenceGivenPrompt:
     def __init__(
@@ -90,8 +165,9 @@ class FrozenModelSentenceGivenPrompt:
         sentence_validator=None,
         valid_sentence_alpha=None,
         reward_model=None,
-        reward_tokenizer=None,
-        classifier=None,
+        reward_interval=None,
+        original_tokenizer=None,
+        reward_model_tokenizer=None,
     ):
         assert (
             sentence_validator is None
@@ -108,27 +184,24 @@ class FrozenModelSentenceGivenPrompt:
         self.min_len = min_len
         self.sentence_validator = sentence_validator
         self.valid_sentence_alpha = valid_sentence_alpha
-        self.reward_model = reward_model
-        self.reward_tokenizer = reward_tokenizer
-        self.classifier = classifier
 
-    def score(self, input_batch, prompt_length, model, tokenizer ,reward_model, reward_tokenizer,classifier):
+    def score(self, input_batch, prompt_length, model, tokenizer,reward_model, reward_interval, original_tokenizer, reward_model_tokenizer):
         # lora_to_base(model)
         training = model.training
         model.eval()
         reward, reward_unpenalized = score_fast(
             model=model,
-            tokenizer=tokenizer,
             encoded_input=input_batch,
             termination_token_id=self.sentence_token_id,
             skip_first=prompt_length,
+            reward_model=reward_model,
+            reward_interval=reward_interval,
+            original_tokenizer=original_tokenizer,
+            reward_model_tokenizer=reward_model_tokenizer, 
             vocab_nice_mask=self.vocab_nice_mask,
             vocab_naughty_mask=self.vocab_naughty_mask,
             vocab_alpha=self.vocab_alpha,
             min_len=self.min_len,
-            reward_model = reward_model,
-            reward_tokenizer = reward_tokenizer,
-            classifier=classifier
         )
         reward /= self.temperature
         reward_unpenalized /= self.temperature
@@ -197,7 +270,6 @@ class ModelSentenceValidator(SentenceValidator):
         self.model = AutoModelForSequenceClassification.from_pretrained(
             model_name, device_map="auto"
         )
-
     @torch.no_grad()
     def __call__(self, sentences, tokenizer):
         sentences = sentences.to(self.model.device)
@@ -239,14 +311,10 @@ def generate_and_return_termination_logprob(
     action_seq=None,
     skip_rewards=False,
 ):
-    # print("Input Prompt Encoded: \n",encoded_prompt)
-    # generate and return the probability of terminating at every step
     model_device = next(model.parameters()).device
-
     active_seqs = torch.ones(encoded_prompt.size(0)).bool().to(encoded_prompt.device)
     state = encoded_prompt.clone().to(model_device)
     action_seq = None
-    # print("Encoded Prompt: ",state)
     log_pf = []
     log_pterm = []
     token_ids = state  # For caching hidden states during generation
@@ -342,7 +410,6 @@ def generate_and_return_termination_logprob(
         if torch.all(~active_seqs):
             break
 
-    # print("Encoded output after generation \n",state)
     log_pf = torch.stack(log_pf, dim=1)
     log_pterm = torch.stack(log_pterm, dim=1)
     
@@ -353,13 +420,6 @@ def generate_and_return_termination_logprob(
         # which is guaranteed to be the termination token)
         log_r, log_r_unpenalized = reward_fn(state[:, :-1])
     
-    # print("Log Prob of termination at each token: \n",log_pterm)
-    # print("Log Prob of continuing at each token: \n",log_pf)
-    # print(log_pf)
-    # print(log_pterm)
-    # add a termination token to the end of the sequence
-    # print("log_pf:",log_pf)
-    # print("log_pterm:",log_pterm)
     return state, log_pf, log_pterm, log_r, log_r_unpenalized
 
 
