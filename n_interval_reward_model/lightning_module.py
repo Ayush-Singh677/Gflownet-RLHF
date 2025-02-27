@@ -506,6 +506,11 @@ class NextSentenceGFNTask(LightningModule):
                     prompt_length=prompt.shape[1],
                     model=self.model,
                     tokenizer=self.tokenizer,
+                    reward_model=self.reward_model,
+                    reward_interval=self.reward_interval,
+                    original_tokenizer=self.original_tokenizer,
+                    reward_model_tokenizer=self.reward_model_tokenizer,
+        
                 )
                 (
                     _,
