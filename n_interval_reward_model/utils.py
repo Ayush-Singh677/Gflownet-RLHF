@@ -89,20 +89,28 @@ def score_fast(
         response_tokens = encoded_input[:, skip_first:]
 
         for i in range(0, response_tokens.shape[1], reward_interval):
+            # Construct the sequence up to the current interval
             current_sequence = torch.cat(
                 [encoded_input[:, :prompt_length], response_tokens[:, : i + 1]], dim=1
             )
 
+            # Tokenize the sequence for the reward model (if needed)
             if reward_model_tokenizer is not None:
-                reward_input = original_tokenizer.decode(current_sequence[0])
-                reward_input = reward_model_tokenizer(reward_input, return_tensors="pt")
+                # Decode the sequence to text
+                decoded_sequence = original_tokenizer.decode(current_sequence[0])
+                # Re-tokenize using the reward model's tokenizer
+                reward_input = reward_model_tokenizer(
+                    decoded_sequence, return_tensors="pt", padding=True, truncation=True
+                ).to(encoded_input.device)
             else:
-                reward_input = current_sequence
+                reward_input = {"input_ids": current_sequence}
 
+            # Compute reward using the reward model
             with torch.no_grad():
-                reward_output = reward_model(reward_input).logits
-                reward_value = reward_output.mean()
+                reward_output = reward_model(**reward_input).logits
+                reward_value = reward_output.mean()  # Example aggregation (can be adjusted)
 
+            # Replace the confidence-based reward at the current interval
             reward[:, i] = reward_value.item()
 
     return reward, reward_unpenalized
