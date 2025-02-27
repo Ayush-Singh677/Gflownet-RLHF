@@ -2,7 +2,7 @@ name: "openwebtext"
 
 data:
   path: "data/openwebtext/prompts.txt"
-  train_size: 0.99
+  train_size: 0.9
   limit_prompts: 1000
 
 model:
