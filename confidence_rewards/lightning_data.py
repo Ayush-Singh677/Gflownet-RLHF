@@ -51,5 +51,8 @@ class PromptDataset(Dataset):
         prompt = self.tokenizer(
             self.prompts[index],
             return_tensors="pt",
+            truncation=True, 
+            max_length=1024, 
+            padding="max_length"
         )["input_ids"]
         return prompt
