@@ -52,6 +52,6 @@ class PromptDataset(Dataset):
             self.prompts[index],
             return_tensors="pt",
             truncation=True, 
-            max_length=1024, 
+            max_length=512, 
         )["input_ids"]
         return prompt
