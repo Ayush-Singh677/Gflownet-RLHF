@@ -129,7 +129,7 @@ def train(config: DictConfig):
     )
 
     trainer = pl.Trainer(
-        accelerator="gpu",
+        accelerator="cuda",
         devices=-1,  # Use all available GPUs
         # strategy="deepspeed_stage_3",  # DeepSpeed Zero-3 strategy
         # precision=16,  # Mixed precision training
