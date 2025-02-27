@@ -24,11 +24,12 @@ from lightning_data import PromptDataModule
 import os
 import json
 
-num_gpus = torch.cuda.device_count()
-if num_gpus > 1:
-    device_map = "balanced_low_0"
-else:
-    device_map = "auto"
+# num_gpus = torch.cuda.device_count()
+# if num_gpus > 1:
+#     device_map = "balanced_low_0"
+# else:
+#     device_map = "auto"
+device_map = "auto"
 os.environ["WANDB_MODE"] = "offline"
 
 @hydra.main(version_base=None, config_path="./configs/", config_name="train")
